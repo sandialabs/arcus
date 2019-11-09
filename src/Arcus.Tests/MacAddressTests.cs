@@ -8,12 +8,24 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Text.RegularExpressions;
 using Gulliver;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Arcus.Tests
 {
     /// <summary>Tests for <see cref="MacAddress" /></summary>
     public class MacAddressTests
     {
+        #region Setup / Teardown
+
+        public MacAddressTests(ITestOutputHelper testOutputHelper)
+        {
+            this._testOutputHelper = testOutputHelper;
+        }
+
+        private readonly ITestOutputHelper _testOutputHelper;
+
+        #endregion
+
         #region IComparable<MacAddress>
 
         [Theory]
@@ -96,6 +108,32 @@ namespace Arcus.Tests
         }
 
         #endregion end: GetCidBytes
+
+        public static IEnumerable<object[]> GetEui64AddressBytes_Test_Values()
+        {
+            yield return new object[] { new byte[] { 0x02, 0x21, 0x86, 0xFF, 0xFE, 0xB5, 0x6E, 0x10 }, MacAddress.Parse("00:21:86:B5:6E:10") };
+            yield return new object[] { new byte[] { 0xFD, 0x21, 0x86, 0xFF, 0xFE, 0xB5, 0x6E, 0x10 }, MacAddress.Parse("FF:21:86:B5:6E:10") };
+            yield return new object[] { new byte[] { 0xC2, 0xFF, 0xEE, 0xFF, 0xFE, 0xCA, 0xFE, 0x00 }, MacAddress.Parse("C0:FF:EE:CA:FE:00") };
+        }
+
+        [Theory]
+        [MemberData(nameof(GetEui64AddressBytes_Test_Values))]
+        public void GetEui64AddressBytes_Test(byte[] expected, MacAddress input)
+        {
+            // Arrange
+            // Act
+            var result = input.GetEui64AddressBytes();
+
+            // Assert
+            Assert.IsType<byte[]>(result);
+            var addressBytes = input.GetAddressBytes();
+
+            Assert.Equal(8, result.Length);
+            Assert.NotEqual(expected[0] & 0b10, addressBytes[0] & 0b10);
+            Assert.Equal(0xFF, result[3]);
+            Assert.Equal(0xFE, result[4]);
+            Assert.Equal(0, ByteArrayUtils.CompareUnsignedBigEndian(expected, result));
+        }
 
         #region GetHashCode
 

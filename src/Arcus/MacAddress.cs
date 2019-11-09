@@ -346,6 +346,65 @@ namespace Arcus
                        .ToArray();
         }
 
+        #region MapEui64
+
+        /// <summary>Gets a mapping of the Mac Address as a EUI-64</summary>
+        /// <remarks><para>Note that this mapping is considered deprecated, and is implemented for legacy needs</para></remarks>
+        /// <remarks><para>The implementation of this method is under question</para></remarks>
+        /// <returns>an array of bytes representing the EUI-64 of the MAC Address</returns>
+        [NotNull]
+        [Obsolete("This method is obsolete until the desired output can be verified")]
+        public byte[] GetEui64AddressBytes()
+        {
+            /* there are several sources that say several things about this mapping; it is unclear which is "most" correct, or what the vairants impy.
+             *
+             * the Networking Engineering StackExchange (current implementation) https://networkengineering.stackexchange.com/a/30864/22751
+             * states that the insertion bytes should be [0xFF, 0xFE] and 7th bit should be inverted.
+             *
+             * Wikipedia entry for "Mac Address" (https://en.wikipedia.org/wiki/MAC_address#cite_note-6)
+             * states that the insertion bytes should be [0xFF, 0xFE] if the source is a EUI-48
+             * and that the insertion bytes should be [0xFF, 0xFF] if the source is a MAC-48
+             * (no inversion of any bits mentioned)
+             *
+             * IEEE in "Guidelines for Use of Extended Unique Identifier (EUI), Organizationally Unique Identifier (OUI), and Company ID (CID)"
+             * section "Mapping an EUI-48 to an EUI-64" (pg 15)
+             * (https://standards.ieee.org/content/dam/ieee-standards/standards/web/documents/tutorials/eui.pdf)
+             * states that the insertion bytes should be [0xFF, 0xFE] or [0xFF, 0xFF]
+             * (no inversion of any bits mentioned)
+             *
+             * It seems odd that each of the 3 above mentioned very specifically outlining differing rules for what would seem to be the same opeation.
+             * While IEEE is the definitive source, I'd like to determine the reasoning of the other implementations before moving forward. The differing
+             * schemes may be perfectly valid in the appropriate place.
+             *
+             * All this for a known legacy operation 🤷
+             */
+
+            // To generate a EUI-64 from the EUI-48
+            // - divided EUI-48 int two 3-byte parts; OUI & CID
+            // - insert the value 0xFFFE between the two parts (24th bit)
+            // - Invert the 7th bit of the result
+
+            var eui64 = new byte[8];
+            Array.Copy(this._address, 0, eui64, 0, 3);  // first 3 bytes od address
+            eui64[3] = 0xFF;
+            eui64[4] = 0xFE;
+            Array.Copy(this._address, 3, eui64, 5, 3);  // last 3 bytes of address
+
+            // invert the 7th bit
+            if ((eui64[0] & 0b0000_0010) != 0)  // 7th bit (big-endian) is set, it should be cleared
+            {
+                eui64[0] &= 0b1111_1101;    // clear the 7th bit
+            }
+            else  // 7th bit (big-endian) is not set, it should be set
+            {
+                eui64[0] |= 0b0000_0010;    // set the 7th bit
+            }
+
+            return eui64;
+        }
+
+        #endregion MapEui64
+
         /// <inheritdoc />
         public override string ToString()
         {
